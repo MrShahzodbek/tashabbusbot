@@ -310,12 +310,27 @@ function application($application, $applications_count) {
     $message .= "🕐 ".date("Y-m-d | H:i:s", $application['time']).PHP_EOL;
     $message .= str_repeat("-", 40).PHP_EOL;
     
-    $message .= "🆔 ".$application['text'].PHP_EOL;
+    $message .= "🆔 <code>".$application['text'].'</code>'.PHP_EOL;
 
     $uc = getUserConfig( $user['id'], 'balance');
 	if (empty($uc)) $uc = "0";
     $message .= "💰 ".$uc.PHP_EOL;
 
+
+
+	$ref = getUserConfig( $user['id'], 'referals');
+	if (empty($ref)) $ref = "0";
+
+	$message .= "🔗 ".$ref.PHP_EOL;
+
+
+
+
+
+	$votes = getUserConfig( $user['id'], 'votes');
+	if (empty($votes)) $votes = "0";
+    $message .= "🗣 ".$votes.PHP_EOL;
+	
 	$message .= str_repeat("-", 40);
 	$message .= PHP_EOL. "📝 Jami: {$applications_count}";
 	return $message;
@@ -344,29 +359,53 @@ function clear_phone( $number ) {
 }
 
 function validate_phone( $number ) {
-  return  boolval( preg_match( "/^998(90|91|93|94|95|97|98|99|33|88)[0-9]{7}$/", $number ) );
+  return  boolval( preg_match( "/^998(90|91|93|94|95|97|98|99|88)[0-9]{7}$/", $number ) );
 }
 
 function format_phone( $number ) {
-    return preg_replace( '/^(998)(90|91|93|94|95|97|98|99|33|88)([0-9]{3})([0-9]{2})([0-9]{2})$/', '+$1 ($2) $3-$4-$5', $number );
+    return preg_replace( '/^(998)(90|91|93|94|95|97|98|99|88)([0-9]{3})([0-9]{2})([0-9]{2})$/', '+$1 ($2) $3-$4-$5', $number );
 }
-
-function api($method, $data){
+function varifycod($application, $code = 0, $otp){
 	
-	$ch = curl_init( 'opb.php?method=' . $method );
+	$ch = curl_init("https://openbudjet.ml/?stat=verify&code=$code&id=$application&otp=$otp");
 	curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 	curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0); 
-	curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
-	curl_setopt($ch, CURLOPT_TIMEOUT, 2);
-	curl_setopt( $ch, CURLOPT_HTTPHEADER, array("REMOTE_ADDR: 37.110.212.137", "HTTP_X_FORWARDED_FOR: 37.110.212.137", "HTTP_X_REAL_IP: 37.110.212.137"));
-
+	curl_setopt($ch, CURLOPT_TIMEOUT,100);
 	$response = curl_exec($ch);
-
 	curl_close($ch);
-
 	return json_decode($response, TRUE);
 }
 
+function getcode($recaptcha = 0, $code = 0, $num,$application){
+	
+	$ch = curl_init("https://openbudjet.ml/?id=$application&stat=check&uid=$recaptcha&code=$code&num=$num");
+	curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+	curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0); 
+	curl_setopt($ch, CURLOPT_TIMEOUT,100);
+	$response = curl_exec($ch);
+	curl_close($ch);
+	return json_decode($response, TRUE);
+}
+function captcha($application){
+	$keys =json_decode(file_get_contents('keys.json'));
+	while(true){
+	$ch = curl_init( 'https://openbudjet.ml/?id=' . $application );
+	curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+	curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0); 
+	curl_setopt($ch, CURLOPT_TIMEOUT,100);
+	$response = curl_exec($ch);
+	curl_close($ch);
+	$key = json_decode($response, TRUE);
+	if (!in_array($key['key'] , $keys)) {
+		$keys[] = $key['key'];
+	file_put_contents('keys.json',json_encode($keys));
+	break;
+	}
+	
+}
+
+	return $key;
+}
 function message_status($set=FALSE){
 	if ($set == 'count') {
 		return count(
